@@ -46,13 +46,6 @@ button{font:inherit;color:inherit;cursor:pointer}
 #shirt{display:block;width:100%;height:auto;margin:0 auto}
 #result:not([hidden]) .stage{animation:rise .5s ease-out}
 @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
-.tryon{margin-top:46px;padding-top:26px;border-top:2px dashed var(--red)}
-.tryon h2{font:800 1.8rem/1.1 var(--display);margin:0 0 10px}
-#photo{display:block;width:100%;height:auto;border-radius:8px;border:2px solid var(--line);touch-action:none;cursor:grab;background:#ddd}
-.ctrl{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px 22px;margin:14px 0}
-.ctrl label{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.95rem}
-.ctrl input{width:100%;accent-color:var(--red)}
-label.btn{display:inline-block;cursor:pointer}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -74,22 +67,6 @@ label.btn{display:inline-block;cursor:pointer}
     <p class="lead">Ось як виглядатиме твій візерунок на сорочці: уздовж рукавів (полики), на манжетах і на подолі.</p>
     <div class="stage"><svg id="shirt" viewBox="0 0 600 600" role="img" aria-label="Сорочка з вишитим тобою візерунком"></svg></div>
     <p style="margin-top:22px"><button class="btn ghost" id="back">← Змінити візерунок</button> <button class="btn ghost" id="again">Почати спочатку</button></p>
-
-    <div class="tryon">
-      <h2>Приміряй на справжню сорочку</h2>
-      <p class="lead">Завантаж фото звичайної білої чи лляної сорочки (блузки), і твій візерунок ляже на неї ниткою, з тінями й складками тканини. Використовуй власне фото або зображення, яке дозволено використовувати.</p>
-      <p><label class="btn" for="file" id="fileBtn">Обрати фото сорочки</label><input type="file" id="file" accept="image/*" hidden></p>
-      <div id="photoBox" hidden>
-        <canvas id="photo" aria-label="Фото сорочки з твоїм візерунком"></canvas>
-        <p class="note" id="photoHint">Перетягни смугу в потрібне місце. Розмір, поворот і кількість повторів змінюються повзунками нижче.</p>
-        <div class="ctrl">
-          <label>Розмір <input type="range" id="rSize" min="2" max="40" step="0.5"></label>
-          <label>Поворот <input type="range" id="rRot" min="-180" max="180" step="1"></label>
-          <label>Повторів <input type="range" id="rRep" min="1" max="10" step="1"></label>
-        </div>
-        <p><button class="chip" id="addS">+ Додати смугу</button> <button class="chip" id="delS">Видалити смугу</button> <button class="btn" id="savePng">Зберегти картинку</button></p>
-      </div>
-    </div>
   </section>
 </div>
 
@@ -197,94 +174,6 @@ function drawShirt(){
   o+=`<g transform="translate(600 0) scale(-1 1)"><g transform="translate(215 105) rotate(106)">${sleeve}</g></g>`;
   $('#shirt').innerHTML=o;
 }
-/* ---------- примірка на фото ---------- */
-const ph={img:null,strips:[],sel:-1,drag:null,cv:$('#photo')};
-const pctx=ph.cv.getContext('2d');
-function drawStrip(c,st){
-  c.save();c.translate(st.x,st.y);c.rotate(st.r*Math.PI/180);
-  const w=19*st.n*st.s,h=9*st.s;c.translate(-w/2,-h/2);
-  c.lineCap='round';c.globalCompositeOperation='multiply';
-  for(const pass of [0,1]){
-    for(let k=0;k<st.n;k++)for(let y=0;y<H;y++)for(let x=0;x<W;x++){
-      const v=grid[y][x];if(!v)continue;
-      const X=(k*19+x)*st.s,Y=y*st.s,a=st.s*.16,b=st.s*.84;
-      c.beginPath();
-      if(pass===0){c.strokeStyle='rgba(0,0,0,.30)';c.lineWidth=st.s*.34;const o=st.s*.07;
-        c.moveTo(X+a+o,Y+a+o*1.6);c.lineTo(X+b+o,Y+b+o*1.6);c.moveTo(X+b+o,Y+a+o*1.6);c.lineTo(X+a+o,Y+b+o*1.6)}
-      else{c.strokeStyle=COLS[v];c.lineWidth=st.s*.34;
-        c.moveTo(X+a,Y+a);c.lineTo(X+b,Y+b);c.moveTo(X+b,Y+a);c.lineTo(X+a,Y+b)}
-      c.stroke();
-    }
-  }
-  c.restore();
-}
-function drawPhoto(forExport,target){
-  const c=target||pctx,cv=c.canvas;
-  c.save();c.globalCompositeOperation='source-over';c.clearRect(0,0,cv.width,cv.height);
-  if(ph.img)c.drawImage(ph.img,0,0,cv.width,cv.height);
-  c.restore();
-  ph.strips.forEach(st=>drawStrip(c,st));
-  if(!forExport&&ph.sel>=0){
-    const st=ph.strips[ph.sel];c.save();c.translate(st.x,st.y);c.rotate(st.r*Math.PI/180);
-    const w=19*st.n*st.s,h=9*st.s,pad=st.s*.8;
-    c.setLineDash([10,7]);c.lineWidth=Math.max(2,cv.width/420);c.strokeStyle='#2f6df2';
-    c.strokeRect(-w/2-pad,-h/2-pad,w+2*pad,h+2*pad);c.restore();
-  }
-}
-function syncCtrl(){
-  const st=ph.strips[ph.sel],on=!!st;
-  ['rSize','rRot','rRep'].forEach(id=>$('#'+id).disabled=!on);
-  $('#delS').disabled=!on;
-  if(on){$('#rSize').value=st.s;$('#rRot').value=st.r;$('#rRep').value=st.n}
-}
-function addStrip(x,y){
-  const cv=ph.cv;ph.strips.push({x:x??cv.width/2,y:y??cv.height/2,s:cv.width/120,r:0,n:2});
-  ph.sel=ph.strips.length-1;syncCtrl();drawPhoto();
-}
-$('#file').addEventListener('change',e=>{
-  const f=e.target.files&&e.target.files[0];if(!f)return;
-  const url=URL.createObjectURL(f),img=new Image();
-  img.onload=()=>{
-    const sc=Math.min(1,1400/Math.max(img.naturalWidth,img.naturalHeight));
-    ph.cv.width=Math.round(img.naturalWidth*sc);ph.cv.height=Math.round(img.naturalHeight*sc);
-    ph.img=img;ph.strips=[];ph.sel=-1;$('#photoBox').hidden=false;
-    addStrip();URL.revokeObjectURL(url);
-    $('#photoBox').scrollIntoView({behavior:'smooth',block:'start'});
-  };
-  img.onerror=()=>{URL.revokeObjectURL(url);$('#photoHint').textContent='Не вдалося відкрити цей файл. Спробуй інше фото (JPG або PNG).'};
-  img.src=url;
-});
-function hit(px,py){
-  for(let i=ph.strips.length-1;i>=0;i--){
-    const st=ph.strips[i],a=-st.r*Math.PI/180,dx=px-st.x,dy=py-st.y;
-    const lx=dx*Math.cos(a)-dy*Math.sin(a),ly=dx*Math.sin(a)+dy*Math.cos(a);
-    if(Math.abs(lx)<=19*st.n*st.s/2+st.s&&Math.abs(ly)<=9*st.s/2+st.s)return i;
-  }
-  return -1;
-}
-function cvPoint(e){const r=ph.cv.getBoundingClientRect();return[(e.clientX-r.left)*ph.cv.width/r.width,(e.clientY-r.top)*ph.cv.height/r.height]}
-ph.cv.addEventListener('pointerdown',e=>{
-  const [px,py]=cvPoint(e),i=hit(px,py);ph.sel=i;syncCtrl();
-  if(i>=0){ph.drag={dx:ph.strips[i].x-px,dy:ph.strips[i].y-py};try{ph.cv.setPointerCapture(e.pointerId)}catch(_){}ph.cv.style.cursor='grabbing'}
-  drawPhoto();
-});
-ph.cv.addEventListener('pointermove',e=>{
-  if(!ph.drag||ph.sel<0)return;const [px,py]=cvPoint(e),st=ph.strips[ph.sel];
-  st.x=px+ph.drag.dx;st.y=py+ph.drag.dy;drawPhoto();
-});
-addEventListener('pointerup',()=>{ph.drag=null;ph.cv.style.cursor='grab'});
-[['rSize','s'],['rRot','r'],['rRep','n']].forEach(([id,k])=>$('#'+id).addEventListener('input',e=>{
-  const st=ph.strips[ph.sel];if(!st)return;st[k]=+e.target.value;drawPhoto();
-}));
-$('#addS').onclick=()=>{const cv=ph.cv,o=ph.strips.length*cv.width*.03;addStrip(cv.width/2+o,cv.height/2+o)};
-$('#delS').onclick=()=>{if(ph.sel<0)return;ph.strips.splice(ph.sel,1);ph.sel=-1;syncCtrl();drawPhoto()};
-$('#savePng').onclick=()=>{
-  const t=document.createElement('canvas');t.width=ph.cv.width;t.height=ph.cv.height;
-  drawPhoto(true,t.getContext('2d'));
-  t.toBlob(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='moya-vyshyvanka.png';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),2000)},'image/png');
-};
-syncCtrl();
-
 function setDone(){const s=stats();$('#done').disabled=s.n<1;$('#doneHint').hidden=s.n>=1}
 const _upd=update;
 update=function(){_upd();setDone()};
